@@ -7,7 +7,7 @@ sed -i 's/downloads.openwrt.org/mirrors.tuna.tsinghua.edu.cn\/openwrt/g' /etc/op
 #
 echo "安装openclash依赖"
 mv /etc/config/dhcp /etc/config/dhcp.bak
-opkg remove dnsmsq
+opkg remove dnsmasq
 opkg update
 opkg install luci-i18n-base-zh-cn coreutils-nohup bash dnsmasq-full curl ca-certificates ipset ip-full libcap libcap-bin ruby ruby-yaml kmod-tun kmod-inet-diag unzip kmod-nft-tproxy luci-compat luci luci-base
 #
