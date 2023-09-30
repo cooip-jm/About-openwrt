@@ -24,4 +24,4 @@ uci commit system
 
 #
 echo "结束，准备重启openwrt"
-service system restart
+reboot
