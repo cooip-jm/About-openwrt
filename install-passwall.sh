@@ -5,6 +5,7 @@ echo "仅限Arm系统"
 
 echo "换源"
 sed -i 's/downloads.openwrt.org/mirrors.tuna.tsinghua.edu.cn\/openwrt/g' /etc/opkg/distfeeds.conf
+opkg update
 #
 echo "下载"
 wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.70-10/passwall_packages_ipk_aarch64_generic.zip -O passwall_packages_ipk_aarch6
