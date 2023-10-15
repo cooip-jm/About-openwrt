@@ -9,12 +9,12 @@ opkg update
 opkg install unzip 
 #
 echo "下载"
-wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.70-10/passwall_packages_ipk_aarch64_generic.zip -O passwall_packages_ipk_aarch64_generic.zip
+wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.71-1/passwall_packages_ipk_aarch64_generic.zip -O passwall_packages_ipk_aarch64_generic.zip
 
-wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.70-10/luci-app-passwall_4.70-10_all.ipk -O luci-app-passwall_4.70-10_all.ipk
+wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.71-1/luci-app-passwall_4.71-1_all.ipk -O luci-app-passwall_4.71-1_all.ipk
 
 
-wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.70-10/luci-i18n-passwall-zh-cn_git-23.263.27645-0fab584_all.ipk -O luci-i18n-passwall-zh-cn_git-23.263.27645-0fab584_all.ipk
+wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.71-1/luci-i18n-passwall-zh-cn_git-23.284.52017-b9a4d8b_all.ipk -O luci-i18n-passwall-zh-cn_git-23.284.52017-b9a4d8b_all.ipk
 
 echo "解压缩"
 unzip passwall_packages_ipk_aarch64_generic.zip
