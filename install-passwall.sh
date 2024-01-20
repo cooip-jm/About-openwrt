@@ -1,6 +1,8 @@
 #!/bin/bash
 #
 ###
+##### 一键安装 wget -O - https://raw.githubusercontent.com/cooip-jm/About-openwrt/main/install-passwall.sh | sh -s -- -v
+
 echo "仅限Arm系统"
 
 echo "换源"
