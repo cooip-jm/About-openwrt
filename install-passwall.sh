@@ -11,12 +11,12 @@ opkg update
 opkg install unzip curl nano kmod-nft-socket 
 #
 echo "下载"
-wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.72-2/passwall_packages_ipk_aarch64_generic.zip -O passwall_packages_ipk_aarch64_generic.zip
+wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.73-3/passwall_packages_ipk_aarch64_generic.zip -O passwall_packages_ipk_aarch64_generic.zip
 
-wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.72-2/luci-23.05_luci-app-passwall_4.72-2_all.ipk -O luci-23.05_luci-app-passwall_4.72-2_all.ipk
+wget https://github.com/xiaorouji/openwrt-passwall/releases/download/4.73-3/luci-23.05_luci-app-passwall_4.73-3_all.ipk -O luci-23.05_luci-app-passwall_4.73-3_all.ipk
 
 
-wget  https://github.com/xiaorouji/openwrt-passwall/releases/download/4.72-2/luci-23.05_luci-i18n-passwall-zh-cn_git-24.008.68762-9c7039e_all.ipk -O luci-23.05_luci-i18n-passwall-zh-cn_git-24.008.68762-9c7039e_all.ipk
+wget  https://github.com/xiaorouji/openwrt-passwall/releases/download/4.73-3/luci-23.05_luci-i18n-passwall-zh-cn_git-24.032.30869-35a254d_all.ipk -O luci-23.05_luci-i18n-passwall-zh-cn_git-24.032.30869-35a254d_all.ipk
 
 echo "解压缩"
 unzip passwall_packages_ipk_aarch64_generic.zip
