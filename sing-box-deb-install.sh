@@ -28,3 +28,7 @@ sudo dpkg -i sing-box.deb
 echo "安装完成,清理安装包"
 
 rm sing-box.deb
+
+systemctl daemon-reload
+systemctl restart sing-box
+echo "重启服务完成"
