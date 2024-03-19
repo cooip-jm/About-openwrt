@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 ###
-echo "openwrt 官方换首页状态,来自@Z-ane-E(Demons)"
+echo "openwrt lede换首页状态,来自@Z-ane-E(Demons)"
 
 echo "换源"
 sed -i 's/downloads.openwrt.org/mirrors.tuna.tsinghua.edu.cn\/openwrt/g' /etc/opkg/distfeeds.conf
