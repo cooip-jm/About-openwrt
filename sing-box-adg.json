@@ -8,12 +8,12 @@
     "servers": [
       {
         "tag": "google",
-        "address": "192.168.0.11",
+        "address": "https://8.8.8.8/dns-query",
         "detour": "proxy"
       },
       {
         "tag": "tx",
-        "address": "192.168.0.11",
+        "address": "https://120.53.53.53/dns-query",
         "detour": "direct"
       },
       {
@@ -36,23 +36,21 @@
         "server": "fakeip"
       },
       {
-        "server": "fakeip",
-        "rewrite_ttl": 1
+        "query_type": [
+          "A",
+          "AAAA"
+        ],
+        "server": "fakeip"
       },
       {
         "rule_set": "geosite-cn",
         "server": "tx"
       }
     ],
-    "final": "google",
     "independent_cache": true
   },
   "route": {
     "rules": [
-      {
-        "ip_is_private": true,
-        "outbound": "direct"
-      },
       {
         "clash_mode": "Direct",
         "outbound": "direct"
@@ -224,7 +222,6 @@
         "download_detour": "proxy"
       }
     ],
-    "final": "final",
     "auto_detect_interface": true
   },
   "outbounds": [
