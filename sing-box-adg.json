@@ -52,6 +52,10 @@
   "route": {
     "rules": [
       {
+        "port": 53,
+        "outbound": "dns-out"
+      },
+      {
         "clash_mode": "Direct",
         "outbound": "direct"
       },
