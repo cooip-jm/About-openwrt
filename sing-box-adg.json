@@ -8,12 +8,12 @@
     "servers": [
       {
         "tag": "google",
-        "address": "https://8.8.8.8/dns-query",
+        "address": "192.168.0.11",
         "detour": "proxy"
       },
       {
         "tag": "tx",
-        "address": "https://120.53.53.53/dns-query",
+        "address": "192.168.0.11",
         "detour": "direct"
       },
       {
@@ -51,10 +51,6 @@
   },
   "route": {
     "rules": [
-      {
-        "port": 53,
-        "outbound": "dns-out"
-      },
       {
         "clash_mode": "Direct",
         "outbound": "direct"
@@ -561,10 +557,6 @@
     {
       "tag": "direct",
       "type": "direct"
-    },
-    {
-      "tag": "dns-out",
-      "type": "dns"
     }
   ],
   "inbounds": [
