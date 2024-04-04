@@ -36,10 +36,6 @@
         "server": "fakeip"
       },
       {
-        "query_type": [
-          "A",
-          "AAAA"
-        ],
         "server": "fakeip",
         "rewrite_ttl": 1
       },
