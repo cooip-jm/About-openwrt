@@ -597,7 +597,7 @@
     "clash_api": {
       "external_controller": "0.0.0.0:9090",
       "external_ui": "ui",
-      "external_ui_download_url": "https://github.com/MetaCubeX/Yacd-meta/archive/refs/tags/v0.3.7.zip",
+      "external_ui_download_url": "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
       "external_ui_download_detour": "proxy"
     },
     "cache_file": {
