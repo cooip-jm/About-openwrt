@@ -12,8 +12,8 @@ opkg remove dnsmasq
 opkg update
 opkg install luci-i18n-base-zh-cn coreutils-nohup bash dnsmasq-full curl ca-certificates ipset ip-full libcap libcap-bin ruby ruby-yaml kmod-tun kmod-inet-diag unzip kmod-nft-tproxy luci-compat luci luci-base
 #
-echo "下载openclash152"
-wget https://github.com/vernesong/OpenClash/releases/download/v0.46.001-beta/luci-app-openclash_0.46.001-beta_all.ipk -O luci-app-openclash_0.46.001-beta_all.ipk
+echo "下载openclash"
+wget https://github.com/vernesong/OpenClash/releases/download/v0.46.011-beta/luci-app-openclash_0.46.011-beta_all.ipk -O luci-app-openclash_0.46.011-beta_all.ipk
 
 opkg install luci-app-openclash_0.46.001-beta_all.ipk
 
