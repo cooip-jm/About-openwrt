@@ -31,3 +31,4 @@ rm mihomo.deb
 systemctl daemon-reload
 systemctl restart mihomo
 echo "重启服务完成"
+/usr/local/bin/mihomo -v
