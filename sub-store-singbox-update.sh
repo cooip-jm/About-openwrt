@@ -14,6 +14,6 @@ echo  "当前运行版本:${Ver2}"
 echo  "Github仓库最新版本:${VERSION}"
 if [ "$Ver2" != "$VERSION" ]; then
 echo "发现新版本，开始更新"
-    bash <(curl -fsSL https://raw.githubusercontent.com/cooip-jm/About-openwrt/main/sing-box-deb-install.sh)
     git -C /var/lib/sing-box/ui pull -r
+    bash <(curl -fsSL https://raw.githubusercontent.com/cooip-jm/About-openwrt/main/sing-box-deb-install.sh)
 fi
