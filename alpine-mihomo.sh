@@ -56,6 +56,7 @@ git clone https://github.com/metacubex/metacubexd.git -b gh-pages /etc/mihomo/ui
 echo "获取懒人配置"
 wget https://wiki.metacubex.one/example/mrs -O /etc/mihomo/config.yaml
 ln -s /etc/mihomo/config.yaml /root/config.yaml
+sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mihomo/config.yaml 
 
 echo "nano ~/config.yaml 修改配置文件订阅内容"
 
