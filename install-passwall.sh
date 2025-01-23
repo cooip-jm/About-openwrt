@@ -6,7 +6,7 @@
 set -e -o pipefail
 
 echo "换源"
-#sed -i 's/downloads.openwrt.org/mirrors.tuna.tsinghua.edu.cn\/openwrt/g' /etc/opkg/distfeeds.conf
+sed -i 's/downloads.openwrt.org/mirrors.tuna.tsinghua.edu.cn\/openwrt/g' /etc/opkg/distfeeds.conf
 opkg update
 opkg install unzip curl nano kmod-nft-socket 
 #
