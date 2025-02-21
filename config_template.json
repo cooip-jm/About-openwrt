@@ -9,7 +9,7 @@
       "external_ui": "ui",
       "secret": "",
       "external_ui_download_url": "https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip",
-      "external_ui_download_detour": "直连",
+      "external_ui_download_detour": "默认",
       "default_mode": "rule"
       }
     },
@@ -104,7 +104,7 @@
       { "rule_set": ["geoip-telegram", "geosite-telegram"], "outbound": "Telegram" },
       { "rule_set": ["geoip-netflix", "geosite-netflix"], "outbound": "Netflix" },
       { "rule_set": ["geoip-apple", "geosite-apple"], "outbound": "Apple" },
-      { "rule_set": ["geosite-spotify"], "outbound": "日本" },
+      { "rule_set": ["geosite-spotify"], "outbound": "Spotify" },
       { "rule_set": "geosite-microsoft", "outbound": "Microsoft" },      
       { "rule_set": "geosite-geolocation-!cn", "outbound": "默认" },
       { "rule_set": ["geoip-cn", "geosite-cn"], "outbound": "直连" }
