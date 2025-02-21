@@ -66,6 +66,7 @@
     { "tag": "Telegram", "type": "selector", "outbounds": ["默认", "香港", "日本", "台湾", "美国", "新加坡", "手动切换"] },
     { "tag": "Netflix", "type": "selector", "outbounds": ["默认", "香港", "日本", "台湾", "美国", "新加坡", "手动切换"] },
     { "tag": "Microsoft", "type": "selector", "outbounds": ["直连", "默认"] },
+    { "tag": "Spotify", "type": "selector", "outbounds": ["日本", "默认"] },
     { "tag": "Apple", "type": "selector", "outbounds": ["直连", "默认"] },
     
     { "tag": "手动切换", "type": "selector", "outbounds": ["{all}"]},
@@ -103,6 +104,7 @@
       { "rule_set": ["geoip-telegram", "geosite-telegram"], "outbound": "Telegram" },
       { "rule_set": ["geoip-netflix", "geosite-netflix"], "outbound": "Netflix" },
       { "rule_set": ["geoip-apple", "geosite-apple"], "outbound": "Apple" },
+      { "rule_set": ["geoip-apple", "geosite-spotify"], "outbound": "Spotify" },
       { "rule_set": "geosite-microsoft", "outbound": "Microsoft" },      
       { "rule_set": "geosite-geolocation-!cn", "outbound": "默认" },
       { "rule_set": ["geoip-cn", "geosite-cn"], "outbound": "直连" }
@@ -121,6 +123,7 @@
       { "tag": "geosite-netflix", "type": "remote", "format": "binary", "url": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs", "download_detour": "直连" },
       { "tag": "geoip-apple", "type": "remote", "format": "binary", "url": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geoip/apple.srs", "download_detour": "直连" },
       { "tag": "geosite-apple", "type": "remote", "format": "binary", "url": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/apple.srs", "download_detour": "直连" },
+      { "tag": "geosite-spotify", "type": "remote", "format": "binary", "url": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/spotify.srs", "download_detour": "直连" },
       { "tag": "geosite-microsoft", "type": "remote", "format": "binary", "url": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/microsoft.srs", "download_detour": "直连" },
       { "tag": "geosite-geolocation-!cn", "type": "remote", "format": "binary", "url": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/geolocation-!cn.srs", "download_detour": "直连" },
       { "tag": "geoip-cn", "type": "remote", "format": "binary", "url": "https://mirror.ghproxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/cn.srs", "download_detour": "直连" },
