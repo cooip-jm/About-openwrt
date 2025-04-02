@@ -58,7 +58,7 @@ wget https://wiki.metacubex.one/example/mrs -O /etc/mihomo/config.yaml
 ln -s /etc/mihomo/config.yaml /root/config.yaml
 sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mihomo/config.yaml 
 
-echo "nano ~/config.yaml 修改配置文件订阅内容"
+echo "nano /etc/mihomo/config.yaml 修改配置文件订阅内容"
 
 echo "修改配置文件后,重启reboot或者rc-service mihomo start"
 
