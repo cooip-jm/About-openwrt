@@ -16,10 +16,20 @@ echo "=== Fedora LXC 桌面环境配置脚本 ==="
 # 1. 配置国内镜像源
 echo "正在配置国内镜像源..."
 sed -e 's|^metalink=|#metalink=|g' \
-    -e 's|^#baseurl=http://download.example/pub/fedora/linux|baseurl=https://mirrors.cernet.edu.cn/fedora|g' \
+    -e 's|^#baseurl=http://download.example/pub/fedora/linux|baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora|g' \
     -i.bak \
     /etc/yum.repos.d/fedora.repo \
     /etc/yum.repos.d/fedora-updates.repo
+
+dnf makecache
+#sed -e 's|^metalink=|#metalink=|g' \
+#    -e 's|^#baseurl=http://download.example/pub/fedora/linux|baseurl=https://mirrors.cernet.edu.cn/fedora|g' \
+#    -i.bak \
+#    /etc/yum.repos.d/fedora.repo \
+#    /etc/yum.repos.d/fedora-updates.repo
+
+
+
 
 # 2. 更新系统（排除内核更新）
 echo "正在更新系统（排除内核）..."
@@ -27,7 +37,7 @@ dnf update -y --exclude=kernel*
 
 # 3. 安装基础工具
 echo "正在安装基础工具..."
-dnf install -y nano curl sudo bash openssl
+dnf install -y nano btop fastfetch curl sudo bash openssl
 
 # 4. 安装GPU驱动程序 (RK3588 Mali GPU支持)
 echo "正在安装GPU驱动程序..."
@@ -49,7 +59,7 @@ usermod -a -G input cooip
 
 # 6. 安装MATE桌面环境
 echo "正在安装MATE桌面环境..."
-dnf install -y @mate-desktop-environment
+dnf install -y @mate-desktop-environment --exclude=kernel*
 
 # 7. 安装中文字体和支持
 echo "正在安装中文字体..."
