@@ -59,7 +59,7 @@ usermod -a -G input cooip
 
 # 6. 安装MATE桌面环境
 echo "正在安装MATE桌面环境..."
-dnf install -y @mate-desktop-environment --exclude=kernel*
+dnf install -y @mate-desktop-environment
 
 # 7. 安装中文字体和支持
 echo "正在安装中文字体..."
