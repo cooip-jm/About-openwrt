@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Fedora LXC 桌面环境配置脚本
+# 条件有限，未测试BSP linux kernel
 # 目前仅测试了RK3588 Rock5B,但也默认支持X86设备
 # 适用于 Arm 设备，支持 MATE、XFCE、LXQt、LXDE、KDE、GNOME、MATE+Compiz、Cinnamon
 # rootfs 建议下载地址https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/
