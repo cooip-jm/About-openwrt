@@ -358,6 +358,11 @@ dnf install -y --skip-broken firefox vlc eom || {
     echo "警告: 部分应用程序安装失败，继续执行..."
 }
 
+sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+sudo dnf install https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+sudo dnf install -y telegram-desktop
+
 # 13. 安装输入法框架
 echo "正在安装输入法..."
 dnf install -y --skip-broken ibus ibus-libpinyin || {
