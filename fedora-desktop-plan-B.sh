@@ -12,7 +12,7 @@
 
 
 # 宿主系统推荐挂载
-# mp0: /mnt/ssd/smb,mp=/share
+# 
 # lxc.cgroup2.devices.allow: c 226:* rwm
 # lxc.mount.entry: /dev/dri dev/dri none bind,create=dir
 # lxc.cgroup2.devices.allow: c 250:* rwm
