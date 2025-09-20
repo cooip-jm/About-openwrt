@@ -11,7 +11,7 @@
 
 
 # 宿主系统推荐挂载
-# mp0: /mnt/ssd/smb,mp=/share
+# mp0: /mnt/sda,mp=/share
 # lxc.cgroup2.devices.allow: c 226:* rwm
 # lxc.mount.entry: /dev/dri dev/dri none bind,create=dir
 # lxc.cgroup2.devices.allow: c 250:* rwm
@@ -76,8 +76,7 @@ dnf update -y --exclude=kernel* || {
 
 # 3. 安装基础工具
 echo "正在安装基础工具..."
-# FIX: Added polkit for better session and permission management, crucial for desktop environments.
-dnf install -y --skip-broken nano btop fastfetch curl sudo bash openssl timedatectl dbus-x11 xorg-x11-xauth polkit || {
+dnf install -y --skip-broken nano btop fastfetch curl sudo bash openssl timedatectl dbus-x11 xorg-x11-xauth || {
     echo "警告: 部分基础工具安装失败，继续执行..."
 }
 
@@ -242,8 +241,7 @@ fi
 
 # 8. 安装和配置xrdp
 echo "正在安装和配置xrdp..."
-# FIX: Added xorgxrdp for improved performance and clipboard support.
-dnf install -y xrdp tigervnc-server xorgxrdp || {
+dnf install -y xrdp tigervnc-server || {
     echo "警告: xrdp 或 tigervnc-server 安装失败，继续执行..."
 }
 
@@ -252,7 +250,7 @@ echo "$xrdp_session" > /home/cooip/.Xclients
 chown cooip:cooip /home/cooip/.Xclients
 chmod +x /home/cooip/.Xclients
 
-# FIX: Replaced xrdp.ini to use the more reliable Xorg backend instead of VNC. This fixes clipboard issues.
+# 配置xrdp使用标准端口3389
 cat > /etc/xrdp/xrdp.ini << EOF
 [globals]
 bitmap_cache=yes
@@ -261,32 +259,17 @@ port=3389
 crypt_level=low
 channel_code=1
 
-[Xorg]
-name=Xorg
-lib=libxup.so
+[xrdp1]
+name=sesman-Xvnc
+lib=libvnc.so
 username=ask
 password=ask
-ip=127.0.0.1
+ip=0.0.0.0
 port=-1
-xserverbpp=24
-code=20
 EOF
 
 # 启用并启动xrdp服务
 systemctl enable xrdp
-
-# FIX: Added a systemd override for xrdp to ensure it starts after network and polkit. This fixes startup issues on reboot.
-echo "Creating systemd override for xrdp service..."
-mkdir -p /etc/systemd/system/xrdp.service.d
-cat > /etc/systemd/system/xrdp.service.d/override.conf << EOF
-[Unit]
-After=network-online.target polkit.service
-Wants=network-online.target
-EOF
-
-# FIX: Enable polkit service, which is essential for session authorization.
-systemctl enable polkit.service
-
 systemctl start xrdp || {
     echo "警告: xrdp 服务启动失败，请检查日志: journalctl -u xrdp"
 }
@@ -310,16 +293,9 @@ else
     echo "错误: 无法设置VNC密码，请稍后手动设置"
 fi
 
-# FIX: Modified xstartup to include vncconfig for clipboard support and to unset stale session variables.
+# 创建VNC启动脚本
 cat > /home/cooip/.vnc/xstartup << EOF
 #!/bin/bash
-# Unset session variables to prevent conflicts
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-
-# Enable clipboard sharing
-vncconfig -nowin &
-
 export XDG_SESSION_TYPE=x11
 export DISPLAY=:1
 exec $session_cmd
@@ -328,21 +304,16 @@ EOF
 chmod +x /home/cooip/.vnc/xstartup
 chown cooip:cooip /home/cooip/.vnc/xstartup
 
-# FIX: Improved VNC service file for reliability on reboot.
-# - Added After/Wants for network-online.target and dbus.service
-# - Added automatic Restart on failure.
+# 创建VNC服务文件
 cat > /etc/systemd/system/vncserver@:1.service << 'EOF'
 [Unit]
 Description=Remote Desktop Service (VNC)
-After=network-online.target syslog.target dbus.service
-Wants=network-online.target
+After=syslog.target network.target
 
 [Service]
 Type=forking
 User=cooip
 Group=cooip
-Restart=on-failure
-RestartSec=5s
 
 WorkingDirectory=/home/cooip
 PIDFile=/home/cooip/.vnc/%H%i.pid
@@ -380,10 +351,10 @@ dnf install -y --skip-broken chromium || {
     echo "警告: chromium 安装失败，继续执行..."
 }
 
-sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
-sudo dnf install -y https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+sudo dnf install https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
-sudo dnf install -y telegram-desktop
+sudo dnf install telegram-desktop
 
 # 12. 安装额外的应用程序
 echo "正在安装额外应用程序..."
@@ -397,15 +368,7 @@ dnf install -y --skip-broken ibus ibus-libpinyin || {
     echo "警告: 部分输入法包安装失败，继续执行..."
 }
 
-# FIX: Correctly configure IBus to start via environment variables for all users.
-# The old method of running the daemon directly was incorrect.
-cat > /etc/profile.d/ibus.sh << 'EOF'
-export GTK_IM_MODULE=ibus
-export QT_IM_MODULE=ibus
-export XMODIFIERS=@im=ibus
-EOF
-chmod +x /etc/profile.d/ibus.sh
-
+sudo ibus-daemon -d -x -r
 
 # 14. 安装GPU测试工具
 echo "正在安装GPU测试工具..."
@@ -431,7 +394,7 @@ fi
 echo ""
 echo "VA-API 测试:"
 if command -v vainfo >/dev/null 2>&1; then
-    vainfo 2>/dev/null || echo "vainfo 运行失败，可能缺乏GPU支持"
+    vaininfo 2>/dev/null || echo "vainfo 运行失败，可能缺乏GPU支持"
 else
     echo "vainfo 未安装"
 fi
