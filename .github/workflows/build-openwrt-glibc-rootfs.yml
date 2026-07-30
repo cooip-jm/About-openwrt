@@ -1,9 +1,7 @@
 name: Build OpenWrt 25.12 armsr/armv8 glibc Rootfs
 
 on:
-  workflow_dispatch:          # 手动触发
-  # schedule:
-  #   - cron: '0 3 * * 0'     # 可选：每周日自动构建
+  workflow_dispatch:
 
 env:
   REPO_URL: https://github.com/openwrt/openwrt
@@ -47,7 +45,10 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo timedatectl set-timezone "$TZ"
+        # 时区在部分 ARM runner 上会失败，忽略即可
+        sudo timedatectl set-timezone "$TZ" 2>/dev/null || \
+          sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime 2>/dev/null || true
+
         sudo -E apt-get -qq update
         sudo -E apt-get -qq install -y --no-install-recommends \
           build-essential clang flex bison gawk git gettext \
@@ -137,11 +138,11 @@ jobs:
         CONFIG_PACKAGE_nftables-json=y
         CONFIG_PACKAGE_kmod-nft-offload=y
 
-        # ==================== DNS / DHCP（dnsmasq-full） ====================
+        # ==================== DNS / DHCP ====================
         # CONFIG_PACKAGE_dnsmasq is not set
         CONFIG_PACKAGE_dnsmasq-full=y
 
-        # ==================== 包管理（25.12 使用 apk） ====================
+        # ==================== 包管理（25.12 用 apk） ====================
         CONFIG_PACKAGE_apk-mbedtls=y
         # CONFIG_PACKAGE_opkg is not set
 
@@ -187,20 +188,18 @@ jobs:
         CONFIG_PACKAGE_ruby-stringio=y
         CONFIG_PACKAGE_ruby-yaml=y
 
-        # ==================== glibc 相关 ====================
+        # ==================== glibc ====================
         CONFIG_PACKAGE_libc=y
         CONFIG_PACKAGE_libpthread=y
         CONFIG_PACKAGE_librt=y
         CONFIG_PACKAGE_libgcc=y
         CONFIG_PACKAGE_libstdcpp=y
 
-        # 关闭包签名（自用更方便）
         # CONFIG_SIGNED_PACKAGES is not set
         EOF
 
         make defconfig
 
-        # 强制再确认关键选项
         sed -i 's/# CONFIG_LIBC_USE_GLIBC is not set/CONFIG_LIBC_USE_GLIBC=y/' .config || true
         sed -i 's/CONFIG_LIBC_USE_MUSL=y/# CONFIG_LIBC_USE_MUSL is not set/' .config || true
         sed -i 's/# CONFIG_USE_GLIBC is not set/CONFIG_USE_GLIBC=y/' .config || true
@@ -231,20 +230,12 @@ jobs:
         find bin/targets/${{ env.TARGET_BOARD }}/${{ env.TARGET_SUBTARGET }} -name "*rootfs*.tar.gz" -ls || true
         cp -v bin/targets/${{ env.TARGET_BOARD }}/${{ env.TARGET_SUBTARGET }}/*rootfs*.tar.gz bin_output/rootfs/ || true
 
-        echo "=== collecting glibc related IPKs / packages ==="
+        echo "=== collecting glibc packages ==="
         for pattern in \
-          "libc_*.ipk" \
-          "libpthread_*.ipk" \
-          "librt_*.ipk" \
-          "libgcc_*.ipk" \
-          "libstdcpp_*.ipk" \
-          "libatomic_*.ipk" \
-          "libgomp_*.ipk" \
-          "libc-*.apk" \
-          "libpthread-*.apk" \
-          "librt-*.apk" \
-          "libgcc-*.apk" \
-          "libstdcpp-*.apk"
+          "libc_*.ipk" "libpthread_*.ipk" "librt_*.ipk" \
+          "libgcc_*.ipk" "libstdcpp_*.ipk" "libatomic_*.ipk" "libgomp_*.ipk" \
+          "libc-*.apk" "libpthread-*.apk" "librt-*.apk" \
+          "libgcc-*.apk" "libstdcpp-*.apk"
         do
           find bin/ -name "$pattern" -exec cp -v {} bin_output/packages_glibc/ \; 2>/dev/null || true
         done
@@ -255,7 +246,7 @@ jobs:
           echo "Date (UTC)     : $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "Target         : ${{ env.TARGET_BOARD }}/${{ env.TARGET_SUBTARGET }}"
           echo "glibc          : 2.41 (OpenWrt 25.12 official)"
-          echo "Runner         : ubuntu-24.04-arm (native aarch64)"
+          echo "Runner         : ubuntu-24.04-arm"
         } > bin_output/BUILD_INFO.txt
 
         echo "=== final artifacts ==="
