@@ -9,6 +9,10 @@ env:
   TARGET_BOARD: armsr
   TARGET_SUBTARGET: armv8
   TZ: Asia/Shanghai
+  # 与当前 openwrt-25.12 日志一致；若上游更新 commit，以 Compile 报错里的文件名为准再改
+  GLIBC_VER: "2.41"
+  GLIBC_REV: "6a0b8e366520a09722aef6c17ec1b103e82f3c28"
+  GLIBC_SHA256: "5bd5efe0b037cada9b2dfdfa75bbc83f087751dd14d7dd8af974b8a37467ec68"
 
 jobs:
   build:
@@ -21,24 +25,15 @@ jobs:
 
     - name: Maximize disk space
       run: |
-        echo "===== 清理前磁盘 ====="
         df -h
-        sudo rm -rf /usr/share/dotnet \
-                    /usr/local/lib/android \
-                    /opt/ghc \
-                    /usr/local/share/boost \
-                    /usr/share/swift \
-                    /usr/local/.ghcup \
-                    /usr/share/miniconda \
-                    /usr/local/share/powershell \
-                    /usr/share/az_* \
-                    /opt/hostedtoolcache \
-                    /usr/local/julia* \
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/share/miniconda /usr/local/share/powershell \
+                    /usr/share/az_* /opt/hostedtoolcache /usr/local/julia* \
                     /usr/local/lib/node_modules || true
         sudo apt-get clean || true
         sudo rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* || true
         sudo rm -rf /usr/share/doc /usr/share/man /usr/share/locale || true
-        echo "===== 清理后磁盘 ====="
         df -h
 
     - name: Initialization environment
@@ -47,13 +42,12 @@ jobs:
       run: |
         sudo timedatectl set-timezone "$TZ" 2>/dev/null || \
           sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime 2>/dev/null || true
-
         sudo -E apt-get -qq update
         sudo -E apt-get -qq install -y --no-install-recommends \
           build-essential clang flex bison gawk git gettext \
           libncurses-dev libssl-dev python3 python3-setuptools \
           unzip wget file rsync zlib1g-dev libelf-dev \
-          ccache quilt xsltproc swig time \
+          ccache quilt xsltproc swig time zstd \
           libxml-parser-perl
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
@@ -61,10 +55,9 @@ jobs:
 
     - name: Clone OpenWrt source
       run: |
-        git clone --depth 1 -b $REPO_BRANCH $REPO_URL openwrt
+        git clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" openwrt
         cd openwrt
-        echo "OpenWrt commit : $(git rev-parse --short HEAD)"
-        echo "OpenWrt describe: $(git describe --tags --always 2>/dev/null || echo 'no-tag')"
+        echo "commit: $(git rev-parse --short HEAD)"
 
     - name: Update & Install feeds
       working-directory: ./openwrt
@@ -72,7 +65,7 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Generate .config (强制 glibc)
+    - name: Generate .config (glibc)
       working-directory: ./openwrt
       run: |
         cat > .config << 'EOF'
@@ -189,9 +182,7 @@ jobs:
 
         make defconfig
 
-        # defconfig 若冲掉 glibc，再注入一次 seed 并 olddefconfig
         if ! grep -q '^CONFIG_LIBC_USE_GLIBC=y' .config; then
-          echo "defconfig 未保留 glibc，重新注入..."
           cat >> .config << 'EOF'
         CONFIG_DEVEL=y
         CONFIG_TOOLCHAINOPTS=y
@@ -204,90 +195,168 @@ jobs:
         echo "========== libc 配置 =========="
         grep -E '^CONFIG_(DEVEL|TOOLCHAINOPTS|LIBC|USE_GLIBC|USE_MUSL|LIBC_USE_)' .config || true
 
-        grep -q '^CONFIG_LIBC_USE_GLIBC=y' .config || {
-          echo "ERROR: CONFIG_LIBC_USE_GLIBC 未生效"
-          exit 1
-        }
+        grep -q '^CONFIG_LIBC_USE_GLIBC=y' .config || { echo "ERROR: glibc 未生效"; exit 1; }
         if grep -q '^CONFIG_LIBC_USE_MUSL=y' .config; then
-          echo "ERROR: 仍然选中了 musl"
+          echo "ERROR: 仍是 musl"
           exit 1
         fi
+        echo "libc OK: glibc"
 
-        echo "libc 检查通过：glibc"
-
-    - name: Download sources
+    - name: Prefetch glibc into dl/
       working-directory: ./openwrt
       run: |
-        make download -j$(nproc)
+        set -e
+        mkdir -p dl tmp/dl
+        GLIBC_FILE="glibc-${GLIBC_VER}-${GLIBC_REV}.tar.zst"
+
+        # 已存在且非空则跳过
+        if [ -s "dl/$GLIBC_FILE" ]; then
+          echo "已有 dl/$GLIBC_FILE"
+          ls -lh "dl/$GLIBC_FILE"
+          exit 0
+        fi
+
+        echo "预取 $GLIBC_FILE ..."
+
+        # 1) 官方镜像（有就用）
+        for url in \
+          "https://sources.cdn.openwrt.org/$GLIBC_FILE" \
+          "https://sources.openwrt.org/$GLIBC_FILE" \
+          "https://mirror2.openwrt.org/sources/$GLIBC_FILE"
+        do
+          if curl -fL --connect-timeout 20 --retry 3 -o "dl/$GLIBC_FILE" "$url"; then
+            echo "下载成功: $url"
+            break
+          fi
+          rm -f "dl/$GLIBC_FILE"
+        done
+
+        # 2) 镜像没有则从 git 打包（带重试，避开 429）
+        if [ ! -s "dl/$GLIBC_FILE" ]; then
+          echo "镜像不可用，git 获取 glibc..."
+          ok=0
+          for i in 1 2 3 4 5; do
+            rm -rf tmp/dl/glibc-src
+            if git clone https://sourceware.org/git/glibc.git tmp/dl/glibc-src || \
+               git clone https://github.com/bminor/glibc.git tmp/dl/glibc-src; then
+              (cd tmp/dl/glibc-src && git checkout "$GLIBC_REV")
+              TAR_TIMESTAMP=$(cd tmp/dl/glibc-src && git log -1 --format='@%ct')
+              tar --numeric-owner --owner=0 --group=0 --mode=a-s --sort=name \
+                ${TAR_TIMESTAMP:+--mtime="$TAR_TIMESTAMP"} \
+                -C tmp/dl --transform "s/^glibc-src/glibc-${GLIBC_VER}/" \
+                -c glibc-src | zstd -T0 -19 -c > "dl/$GLIBC_FILE"
+              ok=1
+              break
+            fi
+            echo "git clone 失败，等待 $((i*45))s 后重试..."
+            sleep $((i*45))
+          done
+          [ "$ok" = "1" ] || { echo "ERROR: 无法获取 glibc 源码"; exit 1; }
+        fi
+
+        ls -lh "dl/$GLIBC_FILE"
+        # SHA 校验（不一致只告警，避免上游改压缩参数导致误杀）
+        if command -v sha256sum >/dev/null; then
+          got=$(sha256sum "dl/$GLIBC_FILE" | awk '{print $1}')
+          if [ "$got" != "$GLIBC_SHA256" ]; then
+            echo "WARNING: sha256 与预期不同"
+            echo "expected: $GLIBC_SHA256"
+            echo "got     : $got"
+            echo "若 make 因 hash 失败，删掉 dl 文件并改用官方包，或更新 env 中的 GLIBC_SHA256"
+          fi
+        fi
+
+    - name: Download other sources
+      working-directory: ./openwrt
+      run: |
+        for i in 1 2 3 4 5; do
+          make download -j$(nproc) && break
+          echo "make download 失败，第 $i 次重试..."
+          sleep $((i*30))
+        done
         find dl -type f -size -1024c -delete || true
+        df -h
 
     - name: Compile
       working-directory: ./openwrt
       run: |
-        make -j$(nproc) V=s || make -j1 V=s
+        set -o pipefail
+        for i in 1 2 3; do
+          if make -j$(nproc) V=s 2>&1 | tee /tmp/build.log; then
+            echo "编译成功"
+            exit 0
+          fi
+          echo "编译失败，准备重试 ($i)..."
+          # 若是 glibc 下载/半成品问题，清掉相关 stamp 再试
+          rm -rf build_dir/toolchain-*/glibc* \
+                 staging_dir/toolchain-*/stamp/.glibc* \
+                 staging_dir/toolchain-*/stamp/.toolchain_* 2>/dev/null || true
+          sleep $((i*60))
+        done
+        echo "多线程多次失败，单线程最终尝试..."
+        make -j1 V=s 2>&1 | tee -a /tmp/build.log
+        status=${PIPESTATUS[0]}
+        echo "===== 最后 100 行 ====="
+        tail -n 100 /tmp/build.log || true
+        exit $status
 
     - name: Verify glibc rootfs & organize artifacts
       working-directory: ./openwrt
       run: |
         mkdir -p bin_output/rootfs bin_output/packages_glibc
 
-        ROOTFS=$(find bin/targets/${{ env.TARGET_BOARD }}/${{ env.TARGET_SUBTARGET }} -name '*rootfs*.tar.gz' | head -1)
+        ROOTFS=$(find "bin/targets/${TARGET_BOARD}/${TARGET_SUBTARGET}" -name '*rootfs*.tar.gz' | head -1)
         if [ -z "$ROOTFS" ]; then
-          echo "ERROR: 没有找到 rootfs.tar.gz"
+          echo "ERROR: 未找到 rootfs.tar.gz"
           find bin/targets -type f 2>/dev/null | head -50
           exit 1
         fi
-        echo "找到 rootfs: $ROOTFS"
+        echo "rootfs: $ROOTFS"
         cp -v "$ROOTFS" bin_output/rootfs/
 
-        echo "===== 检查 rootfs 动态链接器 ====="
+        echo "===== 动态链接器检查 ====="
         tar tzf "$ROOTFS" | grep -E 'lib/ld-|lib64/ld-|libc\.so' || true
 
         if tar tzf "$ROOTFS" | grep -q 'ld-musl'; then
-          echo "ERROR: rootfs 内是 ld-musl，实际编出的是 musl"
+          echo "ERROR: 产物是 musl，不是 glibc"
           exit 1
         fi
-
         if tar tzf "$ROOTFS" | grep -qE 'ld-linux-aarch64\.so|ld-linux\.so'; then
-          echo "OK: 检测到 ld-linux，确认为 glibc rootfs"
+          echo "OK: glibc rootfs"
         else
           mkdir -p /tmp/rootfs_check
           tar xzf "$ROOTFS" -C /tmp/rootfs_check ./lib ./lib64 2>/dev/null || \
             tar xzf "$ROOTFS" -C /tmp/rootfs_check lib lib64 2>/dev/null || true
-          find /tmp/rootfs_check -name 'ld-*' -o -name 'libc.so*' 2>/dev/null | head -20
+          find /tmp/rootfs_check -name 'ld-*' 2>/dev/null | head -20
           if find /tmp/rootfs_check -name 'ld-musl*' 2>/dev/null | grep -q .; then
-            echo "ERROR: 确认是 musl rootfs"
+            echo "ERROR: musl rootfs"
             exit 1
           fi
           if find /tmp/rootfs_check -name 'ld-linux*' 2>/dev/null | grep -q .; then
-            echo "OK: 确认为 glibc"
+            echo "OK: glibc"
           else
-            echo "WARNING: 无法从动态链接器明确确认，请人工检查产物"
+            echo "WARNING: 未能明确确认动态链接器，请人工检查"
           fi
         fi
 
-        echo "===== 收集 libc 相关包 ====="
         for pattern in \
           "libc_*.ipk" "libpthread_*.ipk" "librt_*.ipk" \
-          "libgcc_*.ipk" "libstdcpp_*.ipk" "libatomic_*.ipk" "libgomp_*.ipk" \
+          "libgcc_*.ipk" "libstdcpp_*.ipk" "libatomic_*.ipk" \
           "libc-*.apk" "libpthread-*.apk" "librt-*.apk" \
-          "libgcc-*.apk" "libstdcpp-*.apk" "glibc*.apk"
+          "libgcc-*.apk" "libstdcpp-*.apk"
         do
           find bin/ -name "$pattern" -exec cp -v {} bin_output/packages_glibc/ \; 2>/dev/null || true
         done
 
         {
-          echo "OpenWrt branch : $REPO_BRANCH"
-          echo "Commit         : $(git rev-parse HEAD)"
-          echo "Date (UTC)     : $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          echo "Target         : ${{ env.TARGET_BOARD }}/${{ env.TARGET_SUBTARGET }}"
-          echo "Runner         : ubuntu-24.04-arm"
-          echo ""
-          echo "=== libc related config ==="
+          echo "branch: $REPO_BRANCH"
+          echo "commit: $(git rev-parse HEAD)"
+          echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "target: ${TARGET_BOARD}/${TARGET_SUBTARGET}"
+          echo "runner: ubuntu-24.04-arm"
           grep -E '^CONFIG_(DEVEL|TOOLCHAINOPTS|LIBC|USE_GLIBC|USE_MUSL|LIBC_USE_)' .config || true
         } > bin_output/BUILD_INFO.txt
 
-        echo "===== 最终产物 ====="
         find bin_output -type f -ls
 
     - name: Upload Artifacts
