@@ -1,0 +1,318 @@
+name: Build OpenWrt 25.12 armsr/armv8 glibc Rootfs 2
+
+on:
+  workflow_dispatch:
+
+env:
+  REPO_URL: https://github.com/openwrt/openwrt
+  REPO_BRANCH: openwrt-25.12
+  TARGET_BOARD: armsr
+  TARGET_SUBTARGET: armv8
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 480
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Maximize disk space
+      run: |
+        echo "===== 清理前磁盘 ====="
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                    /usr/local/share/boost /usr/share/swift /usr/local/.ghcup \
+                    /usr/share/miniconda /usr/local/share/powershell \
+                    /usr/share/az_* /opt/hostedtoolcache /usr/local/julia* \
+                    /usr/local/lib/node_modules || true
+        sudo apt-get clean || true
+        sudo rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* || true
+        sudo rm -rf /usr/share/doc /usr/share/man /usr/share/locale || true
+        echo "===== 清理后磁盘 ====="
+        df -h
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo timedatectl set-timezone "$TZ" 2>/dev/null || \
+          sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime 2>/dev/null || true
+
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install -y --no-install-recommends \
+          build-essential clang flex bison gawk git gettext \
+          libncurses-dev libssl-dev python3 python3-setuptools \
+          unzip wget file rsync zlib1g-dev libelf-dev \
+          ccache quilt xsltproc swig time \
+          libxml-parser-perl
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        df -h
+
+    - name: Clone OpenWrt source
+      run: |
+        git clone --depth 1 -b $REPO_BRANCH $REPO_URL openwrt
+        cd openwrt
+        echo "OpenWrt commit : $(git rev-parse --short HEAD)"
+        echo "OpenWrt describe: $(git describe --tags --always 2>/dev/null || echo 'no-tag')"
+
+    - name: Update & Install feeds
+      working-directory: ./openwrt
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Generate .config (强制 glibc)
+      working-directory: ./openwrt
+      run: |
+        # 第一阶段：写入基础配置
+        cat > .config << 'EOF'
+        CONFIG_TARGET_armsr=y
+        CONFIG_TARGET_armsr_armv8=y
+        CONFIG_TARGET_armsr_armv8_DEVICE_generic=y
+
+        # 必须打开才能选 libc
+        CONFIG_DEVEL=y
+        CONFIG_TOOLCHAINOPTS=y
+
+        # 强制 glibc
+        CONFIG_LIBC_USE_GLIBC=y
+        # CONFIG_LIBC_USE_MUSL is not set
+
+        # 只出 rootfs
+        CONFIG_TARGET_ROOTFS_TARGZ=y
+        # CONFIG_TARGET_ROOTFS_EXT4FS is not set
+        # CONFIG_TARGET_ROOTFS_SQUASHFS is not set
+        # CONFIG_TARGET_IMAGES_GZIP is not set
+
+        CONFIG_ALL_NONSHARED=y
+
+        # 核心系统
+        CONFIG_PACKAGE_base-files=y
+        CONFIG_PACKAGE_busybox=y
+        CONFIG_PACKAGE_bash=y
+        CONFIG_PACKAGE_curl=y
+        CONFIG_PACKAGE_wget-ssl=y
+        CONFIG_PACKAGE_ca-bundle=y
+        CONFIG_PACKAGE_ca-certificates=y
+        CONFIG_PACKAGE_dropbear=y
+        CONFIG_PACKAGE_nano=y
+        CONFIG_PACKAGE_fwtool=y
+        CONFIG_PACKAGE_usbutils=y
+        CONFIG_PACKAGE_e2fsprogs=y
+        CONFIG_PACKAGE_fdisk=y
+        CONFIG_PACKAGE_parted=y
+        CONFIG_PACKAGE_lsblk=y
+        CONFIG_PACKAGE_block-mount=y
+        CONFIG_PACKAGE_kmod-fs-ext4=y
+        CONFIG_PACKAGE_kmod-fs-vfat=y
+        CONFIG_PACKAGE_kmod-usb-storage=y
+        CONFIG_PACKAGE_kmod-usb-storage-uas=y
+        CONFIG_PACKAGE_kmod-usb-core=y
+        CONFIG_PACKAGE_kmod-usb3=y
+        CONFIG_PACKAGE_kmod-usb2=y
+        CONFIG_PACKAGE_uci=y
+        CONFIG_PACKAGE_ubus=y
+        CONFIG_PACKAGE_ubox=y
+        CONFIG_PACKAGE_urandom-seed=y
+        CONFIG_PACKAGE_urngd=y
+        CONFIG_PACKAGE_jsonfilter=y
+        CONFIG_PACKAGE_jshn=y
+        CONFIG_PACKAGE_libjson-script=y
+        CONFIG_PACKAGE_procd=y
+        CONFIG_PACKAGE_procd-seccomp=y
+        CONFIG_PACKAGE_procd-ujail=y
+        CONFIG_PACKAGE_logd=y
+        CONFIG_PACKAGE_mtd=y
+        CONFIG_PACKAGE_netifd=y
+        CONFIG_PACKAGE_fstools=y
+        CONFIG_PACKAGE_firewall4=y
+        CONFIG_PACKAGE_nftables-json=y
+        CONFIG_PACKAGE_kmod-nft-offload=y
+
+        # DNS
+        # CONFIG_PACKAGE_dnsmasq is not set
+        CONFIG_PACKAGE_dnsmasq-full=y
+
+        # 包管理 (25.12 = apk)
+        CONFIG_PACKAGE_apk-mbedtls=y
+        # CONFIG_PACKAGE_opkg is not set
+
+        # 网络
+        CONFIG_PACKAGE_ip-full=y
+        CONFIG_PACKAGE_ip-bridge=y
+        CONFIG_PACKAGE_tc-full=y
+        CONFIG_PACKAGE_iptables-nft=y
+        CONFIG_PACKAGE_ip6tables-nft=y
+        CONFIG_PACKAGE_kmod-ipt-nat=y
+        CONFIG_PACKAGE_kmod-ipt-nat6=y
+        CONFIG_PACKAGE_odhcpd-ipv6only=y
+        CONFIG_PACKAGE_odhcp6c=y
+        CONFIG_PACKAGE_ppp=y
+        CONFIG_PACKAGE_ppp-mod-pppoe=y
+
+        # LuCI
+        CONFIG_PACKAGE_luci=y
+        CONFIG_PACKAGE_luci-base=y
+        CONFIG_PACKAGE_luci-compat=y
+        CONFIG_PACKAGE_luci-mod-admin-full=y
+        CONFIG_PACKAGE_luci-mod-network=y
+        CONFIG_PACKAGE_luci-mod-status=y
+        CONFIG_PACKAGE_luci-mod-system=y
+        CONFIG_PACKAGE_luci-theme-bootstrap=y
+        CONFIG_PACKAGE_luci-ssl=y
+        CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+        CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
+        CONFIG_PACKAGE_luci-i18n-package-manager-zh-cn=y
+        CONFIG_PACKAGE_luci-app-firewall=y
+        CONFIG_PACKAGE_luci-app-package-manager=y
+        CONFIG_PACKAGE_luci-app-attendedsysupgrade=y
+
+        # Ruby
+        CONFIG_PACKAGE_ruby=y
+        CONFIG_PACKAGE_ruby-bigdecimal=y
+        CONFIG_PACKAGE_ruby-date=y
+        CONFIG_PACKAGE_ruby-digest=y
+        CONFIG_PACKAGE_ruby-enc=y
+        CONFIG_PACKAGE_ruby-pstore=y
+        CONFIG_PACKAGE_ruby-psych=y
+        CONFIG_PACKAGE_ruby-stringio=y
+        CONFIG_PACKAGE_ruby-yaml=y
+
+        # glibc 库
+        CONFIG_PACKAGE_libc=y
+        CONFIG_PACKAGE_libpthread=y
+        CONFIG_PACKAGE_librt=y
+        CONFIG_PACKAGE_libgcc=y
+        CONFIG_PACKAGE_libstdcpp=y
+
+        # CONFIG_SIGNED_PACKAGES is not set
+        EOF
+
+        # 展开依赖
+        make defconfig
+
+        # ========== 关键：defconfig 后强制写回 glibc ==========
+        # defconfig 经常把 libc 选回 musl，必须再强制一次
+        sed -i 's/# CONFIG_DEVEL is not set/CONFIG_DEVEL=y/' .config || true
+        sed -i 's/# CONFIG_TOOLCHAINOPTS is not set/CONFIG_TOOLCHAINOPTS=y/' .config || true
+        sed -i 's/# CONFIG_LIBC_USE_GLIBC is not set/CONFIG_LIBC_USE_GLIBC=y/' .config || true
+        sed -i 's/CONFIG_LIBC_USE_MUSL=y/# CONFIG_LIBC_USE_MUSL is not set/' .config || true
+        sed -i 's/# CONFIG_USE_GLIBC is not set/CONFIG_USE_GLIBC=y/' .config || true
+        sed -i 's/CONFIG_USE_MUSL=y/# CONFIG_USE_MUSL is not set/' .config || true
+        sed -i 's/CONFIG_LIBC="musl"/CONFIG_LIBC="glibc"/' .config || true
+
+        # 再跑一次 olddefconfig 让依赖对齐
+        make olddefconfig || make defconfig
+
+        # 再次强制（防止 olddefconfig 又改回去）
+        sed -i 's/# CONFIG_LIBC_USE_GLIBC is not set/CONFIG_LIBC_USE_GLIBC=y/' .config || true
+        sed -i 's/CONFIG_LIBC_USE_MUSL=y/# CONFIG_LIBC_USE_MUSL is not set/' .config || true
+        sed -i 's/# CONFIG_USE_GLIBC is not set/CONFIG_USE_GLIBC=y/' .config || true
+        sed -i 's/CONFIG_USE_MUSL=y/# CONFIG_USE_MUSL is not set/' .config || true
+        sed -i 's/CONFIG_LIBC="musl"/CONFIG_LIBC="glibc"/' .config || true
+
+        echo "========== 强制后的 libc 配置 =========="
+        grep -E 'CONFIG_DEVEL|CONFIG_TOOLCHAINOPTS|CONFIG_LIBC|CONFIG_USE_GLIBC|CONFIG_USE_MUSL|glibc|musl' .config || true
+
+        # 硬性检查：如果还是 musl 就直接失败，避免白跑几小时
+        if grep -q 'CONFIG_LIBC_USE_MUSL=y' .config || grep -q 'CONFIG_USE_MUSL=y' .config || grep -q 'CONFIG_LIBC="musl"' .config; then
+          echo "ERROR: 配置仍是 musl，停止构建！"
+          exit 1
+        fi
+        if ! grep -q 'CONFIG_LIBC_USE_GLIBC=y' .config; then
+          echo "ERROR: CONFIG_LIBC_USE_GLIBC 未生效！"
+          exit 1
+        fi
+        echo "libc 配置检查通过：使用 glibc"
+
+    - name: Download sources
+      working-directory: ./openwrt
+      run: |
+        make download -j$(nproc)
+        find dl -type f -size -1024c -delete || true
+
+    - name: Compile
+      working-directory: ./openwrt
+      run: |
+        make -j$(nproc) V=s || make -j1 V=s
+
+    - name: Verify glibc rootfs & organize artifacts
+      working-directory: ./openwrt
+      run: |
+        mkdir -p bin_output/rootfs bin_output/packages_glibc
+
+        ROOTFS=$(find bin/targets/${{ env.TARGET_BOARD }}/${{ env.TARGET_SUBTARGET }} -name '*rootfs*.tar.gz' | head -1)
+        if [ -z "$ROOTFS" ]; then
+          echo "ERROR: 没有找到 rootfs.tar.gz"
+          find bin/targets -type f | head -50
+          exit 1
+        fi
+        echo "找到 rootfs: $ROOTFS"
+        cp -v "$ROOTFS" bin_output/rootfs/
+
+        # ========== 验证是不是真正的 glibc ==========
+        echo "===== 检查 rootfs 内动态链接器 ====="
+        tar tzf "$ROOTFS" | grep -E 'lib/ld-|lib64/ld-|libc\.so' || true
+
+        if tar tzf "$ROOTFS" | grep -q 'ld-musl'; then
+          echo "ERROR: rootfs 里是 ld-musl，说明编出来的是 musl，不是 glibc！"
+          exit 1
+        fi
+
+        if tar tzf "$ROOTFS" | grep -qE 'ld-linux-aarch64\.so|ld-linux\.so'; then
+          echo "OK: 检测到 ld-linux，确认为 glibc rootfs"
+        else
+          echo "WARNING: 没直接看到 ld-linux，继续检查 libc..."
+          # 解压一点出来再看
+          mkdir -p /tmp/rootfs_check
+          tar xzf "$ROOTFS" -C /tmp/rootfs_check ./lib ./lib64 2>/dev/null || \
+            tar xzf "$ROOTFS" -C /tmp/rootfs_check lib lib64 2>/dev/null || true
+          find /tmp/rootfs_check -name 'ld-*' -o -name 'libc.so*' 2>/dev/null | head -20
+          if find /tmp/rootfs_check -name 'ld-musl*' | grep -q .; then
+            echo "ERROR: 确认是 musl rootfs"
+            exit 1
+          fi
+          if find /tmp/rootfs_check -name 'ld-linux*' | grep -q .; then
+            echo "OK: 确认为 glibc"
+          else
+            echo "WARNING: 无法明确确认，请人工检查产物"
+          fi
+        fi
+
+        # 收集 glibc 相关包（25.12 可能是 .apk）
+        echo "===== 收集 libc 相关包 ====="
+        for pattern in \
+          "libc_*.ipk" "libpthread_*.ipk" "librt_*.ipk" \
+          "libgcc_*.ipk" "libstdcpp_*.ipk" "libatomic_*.ipk" "libgomp_*.ipk" \
+          "libc-*.apk" "libpthread-*.apk" "librt-*.apk" \
+          "libgcc-*.apk" "libstdcpp-*.apk" "glibc*.apk"
+        do
+          find bin/ -name "$pattern" -exec cp -v {} bin_output/packages_glibc/ \; 2>/dev/null || true
+        done
+
+        # 也把 toolchain 信息记下来
+        {
+          echo "OpenWrt branch : $REPO_BRANCH"
+          echo "Commit         : $(git rev-parse HEAD)"
+          echo "Date (UTC)     : $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Target         : ${{ env.TARGET_BOARD }}/${{ env.TARGET_SUBTARGET }}"
+          echo "Runner         : ubuntu-24.04-arm"
+          echo ""
+          echo "=== libc related config ==="
+          grep -E 'CONFIG_LIBC|CONFIG_USE_GLIBC|CONFIG_USE_MUSL|glibc|musl' .config || true
+        } > bin_output/BUILD_INFO.txt
+
+        echo "===== 最终产物 ====="
+        find bin_output -type f -ls
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenWrt_25.12_armsr-armv8_glibc_rootfs
+        path: openwrt/bin_output/
+        retention-days: 30
+        if-no-files-found: error
