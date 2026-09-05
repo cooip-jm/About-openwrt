@@ -1,0 +1,89 @@
+{
+  "dns": {
+    "servers": [
+      { "type": "https", "tag": "google", "server": "8.8.8.8", "detour": "Proxy" },
+      { "type": "https", "tag": "tx", "server": "120.53.53.53", "detour": "direct" },
+      { "type": "fakeip", "tag": "fakeip", "inet4_range": "198.18.0.0/15", "inet6_range": "fc00::/18" }
+    ],
+    "rules": [
+      { "query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1 },
+      { "rule_set": "geosite-cn", "server": "tx" }
+    ],
+    "final": "google"
+  },
+  "http_clients": [
+    { "tag": "proxy-http", "detour": "Proxy", "connect_timeout": "15s" }
+  ],
+  "route": {
+    "rules": [
+      { "port": 53, "action": "hijack-dns" },
+      { "ip_is_private": true, "action": "direct" },
+      { "rule_set": "bilibili", "outbound": "bilibili" },
+      { "rule_set": ["geoip-netflix", "geosite-netflix"], "outbound": "netflix" },
+      { "rule_set": "bahamut", "outbound": "bahamut" },
+      { "rule_set": "youtube", "outbound": "youtube" },
+      { "rule_set": "openai", "outbound": "openai" },
+      { "rule_set": ["geoip-google", "geosite-google"], "outbound": "google" },
+      { "rule_set": ["geoip-apple", "geosite-apple"], "outbound": "apple" },
+      { "rule_set": ["geoip-telegram", "geosite-telegram"], "outbound": "telegram" },
+      { "rule_set": ["geoip-cn", "geosite-cn"], "outbound": "cn" },
+      { "rule_set": "geolocation-!cn", "outbound": "Proxy" }
+    ],
+    "rule_set": [
+      { "tag": "geoip-apple", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geoip/apple.srs" },
+      { "tag": "geosite-apple", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geosite/apple.srs" },
+      { "tag": "bahamut", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geosite/bahamut.srs" },
+      { "tag": "bilibili", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geosite/bilibili.srs" },
+      { "tag": "geoip-cn", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/cn.srs" },
+      { "tag": "geosite-cn", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs" },
+      { "tag": "geoip-google", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geoip/google.srs" },
+      { "tag": "geosite-google", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geosite/google.srs" },
+      { "tag": "geolocation-!cn", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/geolocation-!cn.srs" },
+      { "tag": "geoip-netflix", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geoip/netflix.srs" },
+      { "tag": "geosite-netflix", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geosite/netflix.srs" },
+      { "tag": "openai", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/openai.srs" },
+      { "tag": "geoip-telegram", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geoip/telegram.srs" },
+      { "tag": "geosite-telegram", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geosite/telegram.srs" },
+      { "tag": "youtube", "type": "remote", "format": "binary", "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geosite/youtube.srs" }
+    ],
+    "default_domain_resolver": { "server": "tx", "disable_cache": true },
+    "default_http_client": "proxy-http",
+    "final": "final",
+    "auto_detect_interface": true
+  },
+  "outbounds": [
+    { "tag": "Proxy", "type": "selector", "outbounds": ["hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto", "direct"], "default": "all-auto" },
+    { "tag": "google", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "Proxy" },
+    { "tag": "apple", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "direct" },
+    { "tag": "telegram", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "Proxy" },
+    { "tag": "bilibili", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "direct" },
+    { "tag": "netflix", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "Proxy" },
+    { "tag": "bahamut", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "Proxy" },
+    { "tag": "youtube", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "Proxy" },
+    { "tag": "openai", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "Proxy" },
+    { "tag": "cn", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "direct" },
+    { "tag": "final", "type": "selector", "outbounds": ["Proxy", "direct", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "Ai-auto", "Yt-auto", "all-auto"], "default": "Proxy" },
+    { "tag": "kr-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "hk-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "tw-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "jp-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "sg-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "us-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "Ai-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "Yt-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "all-auto", "type": "urltest", "outbounds": [], "url": "https://www.googleapis.com/generate_204", "interval": "1m", "tolerance": 50 },
+    { "tag": "GLOBAL", "type": "selector", "outbounds": ["direct", "Proxy", "hk-auto", "tw-auto", "jp-auto", "sg-auto", "kr-auto", "us-auto", "all-auto"], "default": "direct" },
+    { "tag": "direct", "type": "direct", "domain_resolver": { "server": "tx", "rewrite_ttl": 60 } }
+  ],
+  "inbounds": [
+    { "type": "tun", "address": ["172.19.0.0/30", "fdfe:dcba:9876::0/126"], "stack": "mixed", "auto_route": true, "auto_redirect": true, "route_exclude_address_set": ["geoip-cn"], "loopback_address": ["10.7.0.1"], "platform": { "http_proxy": { "enabled": true, "server": "0.0.0.0", "server_port": 7890 } }, "tag": "tun-in" },
+    { "type": "mixed", "listen": "0.0.0.0", "listen_port": 7890, "tag": "mixed-in" }
+  ],
+  "services": [
+    { "type": "api", "listen": "0.0.0.0", "listen_port": 8080, "tag": "gRPC", "secret": "", "access_control_allow_origin": [], "access_control_allow_private_network": false, "tls": {} }
+  ],
+  "experimental": {
+    "cache_file": { "enabled": true, "store_fakeip": true }
+  },
+  "log": { "disabled": false, "level": "info", "timestamp": true }
+}
