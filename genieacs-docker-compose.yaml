@@ -1,0 +1,49 @@
+services:
+  mongodb:
+    # 4.4.18 是 ARM64 旧设备的“保命”版本   amd64可以直接使用latest
+    image: mongo:4.4.18
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  genieacs:
+    image: drumsergio/genieacs:latest
+    restart: always
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - GENIEACS_MONGODB_CONNECTION_URL=mongodb://mongodb/genieacs
+      - GENIEACS_REDIS_CONNECTION_URL=redis://redis
+      - GENIEACS_UI_JWT_SECRET=admin
+      - GENIEACS_FS_IP=0.0.0.0
+      - GENIEACS_CWMP_IP=0.0.0.0
+      - GENIEACS_UI_IP=0.0.0.0
+    ports:
+      - "7547:7547"
+      - "3000:3000"
+      - "7567:7567"
+    volumes:
+      - genieacs_log:/var/log/genieacs
+
+volumes:
+  mongodb_data:
+  genieacs_log:
+
+## ACS 可以管理XR1710G XG2010G 设备，等一切使用ACS/TR069的设备，配置模板需要自己写，或者让AI帮你搓，可下发配置、脚本、升级设备固件。
